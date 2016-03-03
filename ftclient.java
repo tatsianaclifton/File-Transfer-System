@@ -28,8 +28,8 @@ public class ftclient{
       String host = args[0];
       int port = Integer.parseInt(args[1]); 
       String command = args[2];
-      String file;
-      int dataPort;
+      String file = null;
+      int dataPort = 0;
       if (command.equals("-g")){
          if (args.length == 4){
             System.err.println("File must be specified for -g command.");
@@ -50,10 +50,10 @@ public class ftclient{
           //writer for control socket
           PrintWriter out = new PrintWriter(controlSock.getOutputStream(), true);
           //reader for control socket
-          BufferReader in = new BufferReader(new InputStreamReader(controlSock.getInputStream()));
+          BufferedReader in = new BufferedReader(new InputStreamReader(controlSock.getInputStream()));
  
           //create data server socket
-          ServerSocket dataSock = new ServerSocket(dataPort);
+          ServerSocket serverSock = new ServerSocket(dataPort);
           System.out.format("Waiting for connection on port %d\n.", dataPort);
           
           //create string with commands to sent to the server
@@ -63,7 +63,7 @@ public class ftclient{
           out.println(outCommand);
 
           //accept connection
-          dataSock = controlSock.accept(); 
+          Socket dataSock = serverSock.accept(); 
           System.out.format("Accepted connection on port %d\n.", dataPort);
           
           //check for error messages from the server on control connection
