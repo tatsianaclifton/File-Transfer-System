@@ -4,7 +4,8 @@
 /* Date: 2/29/2016                              */
 /* Description: The file transfer client for a  */
 /*              simple file transfer system.    */
-/* Usage:                                       */
+/* Usage: ftclient <server_host> <server_port>  */
+/* -l|-g <filename> <data_port>")               */
 /*                                              */
 /* Sources: 1. docs.oracle.com/javase/tutorial/ */
 /* networking/sockets/index.html                */
@@ -15,68 +16,88 @@ import java.io.*;
 import java.net.*;
 
 public class ftclient{
+
    //max file size to be downloaded
    public final static int FILE_SIZE = 104857600;
 
-   public static void main (String [] args) throws IOException{
+
+   public static void main(String[] args) throws IOException{
       //check for correct number of arguments
-      if (args.length != 4 || args.length != 5){
-         System.err.println("Usage: ftclient <server_host> <server_port> -l|-g <filename> <data_port>");
+      if (args.length != 4 && args.length != 5){
+         System.err.println("Usage: ftclient <server_host> <server_port> -l|-g <data_port> <file_name>");
          System.exit(1);
       }
-      //get arguments into varuables 
+      //connect to the server and accept connection from the server
+      initiateContact(args);
+   }
+
+      
+   //Function: initiate contact
+   public static void initiateContact(String[] args) throws IOException{
+      //get arguments into variables 
       String host = args[0];
       int port = Integer.parseInt(args[1]); 
       String command = args[2];
-      String file = null;
+      String file = "";
       int dataPort = 0;
+      if (!command.equals("-g") && !command.equals("-l")){
+         System.err.println("Command must be -g or -l");
+         System.exit(1);
+      }
       if (command.equals("-g")){
          if (args.length == 4){
             System.err.println("File must be specified for -g command.");
             System.exit(1);
          }
-         file = args[3];
-         dataPort = Integer.parseInt(args[4]);
+         file = args[4];
+         dataPort = Integer.parseInt(args[3]);
       }
       else if (command.equals("-l")){
-         file = null;
          dataPort = Integer.parseInt(args[3]);
       }
       
-      try{
+      try {
           //create control socket
           Socket controlSock = new Socket(host, port);
-          System.out.format("Connected to %s on port %d\n.", host, port);
           //writer for control socket
           PrintWriter out = new PrintWriter(controlSock.getOutputStream(), true);
           //reader for control socket
           BufferedReader in = new BufferedReader(new InputStreamReader(controlSock.getInputStream()));
- 
+          
           //create data server socket
           ServerSocket serverSock = new ServerSocket(dataPort);
-          System.out.format("Waiting for connection on port %d\n.", dataPort);
+          System.out.format("Waiting for connection on port %d\n", dataPort);
           
+          System.out.format("Connected to %s on port %d\n", host, port);
           //create string with commands to sent to the server
           String outCommand = command + " " + dataPort + " " + file;
-          System.out.println("Sending command to the server" + outCommand);      
+          System.out.println("Sending command to the server " + outCommand);      
           //send command to the server
           out.println(outCommand);
 
           //accept connection
           Socket dataSock = serverSock.accept(); 
-          System.out.format("Accepted connection on port %d\n.", dataPort);
-          
-          //check for error messages from the server on control connection
-          if (in.ready()){
-             System.out.println(in.readLine());
-             System.exit(0);
+          System.out.format("Accepted connection on port %d\n", dataPort);
+          InputStream is = dataSock.getInputStream();
+          BufferedReader br = new BufferedReader(new InputStreamReader(is));
+          //check for messages from the server on control connection
+          String response = "";
+          //while server not sending data to dataSocket
+          while (!br.ready()){
+             //if server has a message on control connection
+             if(in.ready()){ 
+                //read this message
+                response = in.readLine();  
+                //display message     
+                System.out.println(response);
+             }
+             continue;
           }
-          
+                   
           int current = 0; 
           //receive file if command is -g      
           if (command.equals("-g")){
              byte [] byteArr = new byte [FILE_SIZE];
-             InputStream is = dataSock.getInputStream();
              FileOutputStream fos = new FileOutputStream(file);
              BufferedOutputStream bos = new BufferedOutputStream(fos);
              int bytesRead = is.read(byteArr, 0, byteArr.length);
@@ -92,12 +113,10 @@ public class ftclient{
              bos.write(byteArr, 0, current);
              bos.flush();
              controlSock.close();
-             System.out.println("File " + file + " downloaded (" + current + "bytes read"); 
+             System.out.println("Transfer completed. File " + file + " downloaded (" + current + " bytes read)"); 
           }
           if (command.equals("-l")){
              String fileList;
-             InputStream is = dataSock.getInputStream();
-             BufferedReader br = new BufferedReader(new InputStreamReader(is));
              while ((fileList = br.readLine()) != null){
                 System.out.println(fileList);
              } 
@@ -113,4 +132,5 @@ public class ftclient{
          System.exit(1); 
       }
    }
+
 } 
